@@ -8,25 +8,51 @@ factor = 65536;
 width = 18;
 depth = 512;
 LAYERS = 14;
+MAX_DEPTH = 2^(LAYERS - 1);
 
 
-Wn = exp(-1i*2*pi/N);
-rotators_N = Wn.^n;
-rotators_N_real = real(rotators_N);
-rotators_N_img = imag(rotators_N);
+%% 存储每一级的旋转因子
+rotators_real_shifted = zeros(LAYERS, MAX_DEPTH);
+rotators_img_shifted = zeros(LAYERS, MAX_DEPTH);
 
-rotators_N_real_shifted = fix (rotators_N_real * factor )
-rotators_N_img_shifted = fix (rotators_N_img * factor )
+for layer = 1 : 1: LAYERS
+    N = 2 ^ (layer);
+    n = 0 : 1 : N/2 - 1;
+    Wn = exp(-1i*2*pi/N);
+    rotators_N = Wn.^n;
+    rotators_N_real = real(rotators_N);
+    rotators_N_img = imag(rotators_N);
+    %扩大65536后截位
+    rotators_N_real_shifted = fix (rotators_N_real * factor );
+    rotators_N_img_shifted = fix (rotators_N_img * factor );
+    
+    rotators_real_shifted(layer,1:N/2) = rotators_N_real_shifted;
+    rotators_img_shifted(layer,1:N/2) = rotators_N_img_shifted;
+
+
+
+
+
+   
+end
+
+
+
+%% 数据转补码
+for layer = 1 : 1: LAYERS
+
+
+
+end
+
+
+
+
+
+
 
 rotators_N_real_bin = char(zeros(N/2, width));
 rotators_N_img_bin = char(zeros(N/2, width));
-
-%存储所有的旋转因子
-rotators_real = zeros(LAYERS,depth, N/2)
-
-
-
-%数据转补码
 for i=1:N/2
     if(rotators_N_real_shifted(1,i)<0)
         rotators_N_real_bin(i,:) = dec2bin(rotators_N_real_shifted(1,i)+2^18, 18);

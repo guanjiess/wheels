@@ -11,35 +11,119 @@ LAYERS = 14;
 MAX_DEPTH = 2^(LAYERS - 1);
 
 
-Wn = exp(-1i*2*pi/N);
-rotators_N = Wn.^n;
-rotators_N_real = real(rotators_N);
-rotators_N_img = imag(rotators_N);
+%% 存储每一级的旋转因子
+rotators_real_shifted = zeros(LAYERS, MAX_DEPTH);
+rotators_img_shifted = zeros(LAYERS, MAX_DEPTH);
 
-rotators_N_real_shifted = fix (rotators_N_real * factor )
-rotators_N_img_shifted = fix (rotators_N_img * factor )
-
-rotators_N_real_bin = char(zeros(N/2, width));
-rotators_N_img_bin = char(zeros(N/2, width));
-
-%存储所有的旋转因子
-rotators_real = zeros(LAYERS, );
-
-
-
-%数据转补码
-for i=1:N/2
-    if(rotators_N_real_shifted(1,i)<0)
-        rotators_N_real_bin(i,:) = dec2bin(rotators_N_real_shifted(1,i)+2^18, 18);
-    else 
-        rotators_N_real_bin(i,:) = dec2bin(rotators_N_real_shifted(1,i), 18);
-    end
-    if(rotators_N_img_shifted(1,i)<0)
-        rotators_N_img_bin(i,:) = dec2bin(rotators_N_img_shifted(1,i)+2^18, 18);
-    else 
-        rotators_N_img_bin(i,:) = dec2bin(rotators_N_img_shifted(1,i), 18);
-    end
+for layer = 1 : 1: LAYERS
+    N = 2 ^ (layer);
+    n = 0 : 1 : N/2 - 1;
+    Wn = exp(-1i*2*pi/N);
+    rotators_N = Wn.^n;
+    rotators_N_real = real(rotators_N);
+    rotators_N_img = imag(rotators_N);
+    %扩大65536后截位
+    rotators_N_real_shifted = fix (rotators_N_real * factor );
+    rotators_N_img_shifted = fix (rotators_N_img * factor );
+    
+    rotators_real_shifted(layer,1:N/2) = rotators_N_real_shifted;
+    rotators_img_shifted(layer,1:N/2) = rotators_N_img_shifted;
 end
+
+
+
+%% 数据转补码，并写入coe
+%也可以不转补码，让计算机自己转
+rotators_real_bin = char(zeros(LAYERS, MAX_DEPTH, width));
+rotators_img_bin = char(zeros(LAYERS, MAX_DEPTH, width));
+length = zeros(1, N/2);
+for layer = 1 : 1: LAYERS
+    N = 2 ^ (layer);
+    n = 0 : 1 : N/2 - 1;
+    layer_rotators_real_shifted = rotators_real_shifted(layer, 1:N/2);
+    
+    name1 = 'rotator_%d_real.coe';
+    name1 = sprintf(name1, N);
+
+    fid = fopen(name1,'w');
+    fprintf(fid,'memory_initialization_radix = 2;\n');
+    fprintf(fid,'memory_initialization_vector = \n');
+
+    for i=1:N/2
+        if(layer_rotators_real_shifted(1,i)<0)
+            i_rotator_real_bin = dec2bin(layer_rotators_real_shifted(1,i)+2^18, 18);
+        else 
+            i_rotator_real_bin = dec2bin(layer_rotators_real_shifted(1,i), 18);
+        end
+        
+        fprintf(fid, i_rotator_real_bin);
+    
+        if i == N/2
+          fprintf(fid,';');
+        else
+          fprintf(fid,',');
+        end
+        
+        if mod(i,1) == 0
+          fprintf(fid,'\n');
+        end
+    end
+    fclose(fid);
+   
+end
+
+
+for layer = 1 : 1: LAYERS
+    N = 2 ^ (layer);
+    n = 0 : 1 : N/2 - 1;
+    layer_rotators_img_shifted = rotators_img_shifted(layer, 1:N/2);
+    
+    name1 = 'rotator_%d_img.coe';
+    name1 = sprintf(name1, N);
+
+    fid = fopen(name1,'w');
+    fprintf(fid,'memory_initialization_radix = 2;\n');
+    fprintf(fid,'memory_initialization_vector = \n');
+
+    for i=1:N/2
+        if(layer_rotators_img_shifted(1,i)<0)
+            i_rotator_img_bin = dec2bin(layer_rotators_img_shifted(1,i)+2^18, 18);
+        else 
+            i_rotator_img_bin = dec2bin(layer_rotators_img_shifted(1,i), 18);
+        end
+        
+        fprintf(fid, i_rotator_img_bin);
+    
+        if i == N/2
+          fprintf(fid,';');
+        else
+          fprintf(fid,',');
+        end
+        
+        if mod(i,1) == 0
+          fprintf(fid,'\n');
+        end
+    end
+    fclose(fid);
+   
+end
+
+
+% 
+% rotators_N_real_bin = char(zeros(N/2, width));
+% rotators_N_img_bin = char(zeros(N/2, width));
+% for i=1:N/2
+%     if(rotators_N_real_shifted(1,i)<0)
+%         rotators_N_real_bin(i,:) = dec2bin(rotators_N_real_shifted(1,i)+2^18, 18);
+%     else 
+%         rotators_N_real_bin(i,:) = dec2bin(rotators_N_real_shifted(1,i), 18);
+%     end
+%     if(rotators_N_img_shifted(1,i)<0)
+%         rotators_N_img_bin(i,:) = dec2bin(rotators_N_img_shifted(1,i)+2^18, 18);
+%     else 
+%         rotators_N_img_bin(i,:) = dec2bin(rotators_N_img_shifted(1,i), 18);
+%     end
+% end
 
 
 %% 生成mif文件
@@ -78,56 +162,6 @@ end
 % end
 % fprintf(fid,'END;');                % 文件结束    
 % fclose(fid); 
-
-%% 生成coe文件
-  data = 0:1:255;
-
-  fid = fopen('rotator_16_real.coe','w');
-  fprintf(fid,'memory_initialization_radix = 2;\n');
-  fprintf(fid,'memory_initialization_vector = \n');
-  for i = 1:1:N/2
-    fprintf(fid, rotators_N_real_bin(i,:));
-    
-    if i == N/2
-      fprintf(fid,';');
-    else
-      fprintf(fid,',');
-    end
-    
-    if mod(i,1) == 0
-      fprintf(fid,'\n');
-    end
-  end
-  fclose(fid);
-
-  fid = fopen('rotator_16_img.coe','w');
-  fprintf(fid,'memory_initialization_radix = 2;\n');
-  fprintf(fid,'memory_initialization_vector = \n');
-  for i = 1:1:N/2
-    fprintf(fid, rotators_N_img_bin(i,:));
-    
-    if i == N/2
-      fprintf(fid,';');
-    else
-      fprintf(fid,',');
-    end
-    
-    if mod(i,1) == 0
-      fprintf(fid,'\n');
-    end
-  end
-  fclose(fid);
-  
-%%
-for i=1:1:14
-    %% name
-    NN = 2^i;  
-    name1 = 'data_%d_real';
-
-% 插入数字 NN  
-name1 = sprintf(name1, NN/2)
-end
-
 
 
 
